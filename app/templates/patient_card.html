@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de Paciente - {{ patient.full_name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 20px;
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        .header-logo {
+            margin-left: 20px;
+        }
+
+        .header-logo img {
+            max-width: 120px;
+            max-height: 80px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24pt;
+        }
+
+        .header .clinic-info {
+            color: #7f8c8d;
+            font-size: 10pt;
+            margin-top: 5px;
+        }
+
+        .title {
+            background-color: #3498db;
+            color: white;
+            padding: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 18pt;
+            font-weight: bold;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            padding: 8px 12px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 14pt;
+            border-left: 4px solid #3498db;
+        }
+
+        .info-row {
+            display: flex;
+            margin-bottom: 12px;
+            page-break-inside: avoid;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #2c3e50;
+            min-width: 200px;
+        }
+
+        .info-value {
+            color: #34495e;
+            flex: 1;
+        }
+
+        .text-area {
+            background-color: #f8f9fa;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            min-height: 50px;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #bdc3c7;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 9pt;
+        }
+
+        .empty-value {
+            color: #95a5a6;
+            font-style: italic;
+        }
+
+        .alert-section {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 12px;
+            margin-bottom: 20px;
+        }
+
+        .alert-section .section-title {
+            background-color: transparent;
+            padding: 0;
+            margin-bottom: 10px;
+            border-left: none;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>{{ clinic_name }}</h1>
+            <div class="clinic-info">
+                {% if clinic_address %}{{ clinic_address }}<br>{% endif %}
+                {% if clinic_phone %}Tel: {{ clinic_phone }}{% endif %}
+            </div>
+        </div>
+        {% if logo_path %}
+        <div class="header-logo">
+            <img src="file://{{ logo_path }}" alt="Logo">
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="title">FICHA DE PACIENTE</div>
+
+    <div class="section">
+        <div class="section-title">Información Personal</div>
+
+        <div class="info-row">
+            <div class="info-label">Nombre Completo:</div>
+            <div class="info-value">{{ patient.first_name }} {{ patient.last_name }}</div>
+        </div>
+
+        <div class="info-row">
+            <div class="info-label">Cédula de Identidad (CI):</div>
+            <div class="info-value">{{ patient.ci }}</div>
+        </div>
+
+        <div class="info-row">
+            <div class="info-label">Fecha de Nacimiento:</div>
+            <div class="info-value">{{ patient.date_of_birth.strftime('%d/%m/%Y') }} ({{ patient.age }} años)</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Información de Contacto</div>
+
+        <div class="info-row">
+            <div class="info-label">Teléfono:</div>
+            <div class="info-value">
+                {% if patient.phone %}
+                    {{ patient.phone }}
+                {% else %}
+                    <span class="empty-value">No registrado</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="info-row">
+            <div class="info-label">Email:</div>
+            <div class="info-value">
+                {% if patient.email %}
+                    {{ patient.email }}
+                {% else %}
+                    <span class="empty-value">No registrado</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="info-row">
+            <div class="info-label">Dirección:</div>
+            <div class="info-value">
+                {% if patient.address %}
+                    {{ patient.address }}
+                {% else %}
+                    <span class="empty-value">No registrada</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Contacto de Emergencia</div>
+
+        <div class="info-row">
+            <div class="info-label">Nombre:</div>
+            <div class="info-value">
+                {% if patient.emergency_contact_name %}
+                    {{ patient.emergency_contact_name }}
+                {% else %}
+                    <span class="empty-value">No registrado</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="info-row">
+            <div class="info-label">Teléfono:</div>
+            <div class="info-value">
+                {% if patient.emergency_contact_phone %}
+                    {{ patient.emergency_contact_phone }}
+                {% else %}
+                    <span class="empty-value">No registrado</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="info-row">
+            <div class="info-label">Relación:</div>
+            <div class="info-value">
+                {% if patient.emergency_contact_relationship %}
+                    {{ patient.emergency_contact_relationship }}
+                {% else %}
+                    <span class="empty-value">No registrada</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if patient.allergies %}
+    <div class="alert-section">
+        <div class="section-title">⚠️ ALERGIAS IMPORTANTES</div>
+        <div class="text-area">{{ patient.allergies }}</div>
+    </div>
+    {% else %}
+    <div class="section">
+        <div class="section-title">Alergias</div>
+        <div class="text-area">
+            <span class="empty-value">Sin alergias registradas</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+        <div class="section-title">Antecedentes Médicos</div>
+        <div class="text-area">
+            {% if patient.medical_history %}
+                {{ patient.medical_history }}
+            {% else %}
+                <span class="empty-value">Sin antecedentes registrados</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>
+            <strong>Información del Registro</strong><br>
+            Fecha de creación de ficha: {{ patient.created_at.strftime('%d/%m/%Y %H:%M') }}<br>
+            Última actualización: {{ patient.updated_at.strftime('%d/%m/%Y %H:%M') }}
+        </p>
+        <p style="margin-top: 15px;">
+            <strong>{{ clinic_name }}</strong><br>
+            Documento generado electrónicamente - Sistema de Historia Clínica
+        </p>
+    </div>
+</body>
+</html>
