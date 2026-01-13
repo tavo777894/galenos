@@ -73,8 +73,11 @@ def list_templates(
 
     templates = query.offset(skip).limit(limit).all()
 
-    # Get user's favorite template IDs
-    favorite_ids = {t.id for t in current_user.favorite_templates}
+    # Get user's favorite template IDs from database (avoid lazy loading on detached object)
+    favorite_template_ids_query = db.query(user_favorite_templates.c.template_id).filter(
+        user_favorite_templates.c.user_id == current_user.id
+    )
+    favorite_ids = {row[0] for row in favorite_template_ids_query.all()}
 
     # Add is_favorite flag to each template
     templates_with_favorite = []
@@ -89,6 +92,7 @@ def list_templates(
             "default_assessment": template.default_assessment,
             "default_plan": template.default_plan,
             "is_active": template.is_active,
+            "requires_photo": template.requires_photo,
             "created_at": template.created_at,
             "updated_at": template.updated_at,
             "is_favorite": template.id in favorite_ids
@@ -112,8 +116,11 @@ def get_template(
             detail=f"Template with ID {template_id} not found"
         )
 
-    # Check if it's a favorite
-    is_favorite = template in current_user.favorite_templates
+    # Check if it's a favorite (query database directly)
+    is_favorite = db.query(user_favorite_templates).filter(
+        user_favorite_templates.c.user_id == current_user.id,
+        user_favorite_templates.c.template_id == template_id
+    ).first() is not None
 
     template_dict = {
         "id": template.id,
@@ -125,6 +132,7 @@ def get_template(
         "default_assessment": template.default_assessment,
         "default_plan": template.default_plan,
         "is_active": template.is_active,
+        "requires_photo": template.requires_photo,
         "created_at": template.created_at,
         "updated_at": template.updated_at,
         "is_favorite": is_favorite

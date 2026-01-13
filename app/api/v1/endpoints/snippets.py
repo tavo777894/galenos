@@ -71,14 +71,18 @@ def list_snippets(
 
     snippets = query.offset(skip).limit(limit).all()
 
-    # Get user's favorite snippet IDs
-    favorite_ids = {s.id for s in current_user.favorite_snippets}
+    # Get user's favorite snippet IDs from database (avoid lazy loading on detached object)
+    favorite_snippet_ids_query = db.query(user_favorite_snippets.c.snippet_id).filter(
+        user_favorite_snippets.c.user_id == current_user.id
+    )
+    favorite_ids = {row[0] for row in favorite_snippet_ids_query.all()}
 
     # Add is_favorite flag to each snippet
     snippets_with_favorite = []
     for snippet in snippets:
         snippet_dict = {
             "id": snippet.id,
+            "specialty": snippet.specialty,
             "title": snippet.title,
             "category": snippet.category,
             "content": snippet.content,
@@ -111,11 +115,15 @@ def get_snippet(
     snippet.usage_count += 1
     db.commit()
 
-    # Check if it's a favorite
-    is_favorite = snippet in current_user.favorite_snippets
+    # Check if it's a favorite (query database directly)
+    is_favorite = db.query(user_favorite_snippets).filter(
+        user_favorite_snippets.c.user_id == current_user.id,
+        user_favorite_snippets.c.snippet_id == snippet_id
+    ).first() is not None
 
     snippet_dict = {
         "id": snippet.id,
+        "specialty": snippet.specialty,
         "title": snippet.title,
         "category": snippet.category,
         "content": snippet.content,
