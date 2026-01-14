@@ -352,13 +352,95 @@ alembic current
 
 ## Testing
 
-```bash
-# Ejecutar tests (cuando se implementen)
-pytest
+### Coverage
 
-# Con coverage
+The test suite covers:
+
+- **Auth**: Login success/failure, protected endpoints, token validation
+- **Patients**: Create, update, validations (future DOB → 422), duplicate CI → 409
+- **RBAC**: Admin-only delete (doctor/secretaria → 403)
+- **Soft Delete**: Deleted patients return 404, excluded from list
+- **Rate Limiting**: 429 after exceeding login attempts
+
+### Run Tests
+
+```bash
+pytest -q
+```
+
+**Expected result**: `38 passed`
+
+### With Coverage
+
+```bash
 pytest --cov=app tests/
 ```
+
+---
+
+## Rate Limiting (Auth)
+
+### Endpoint
+
+`POST /api/v1/auth/login`
+
+### Policy
+
+- **Limit**: 5 requests per 15 minutes per client IP
+- **Backend**: slowapi with `get_remote_address`
+
+### Responses
+
+| Status | Meaning |
+|--------|---------|
+| 200 | Login successful |
+| 401 | Invalid credentials |
+| 429 | Too many attempts (rate limited) |
+
+### Reset
+
+Counter resets automatically after 15 minutes.
+
+### Manual Verification (PowerShell)
+
+```powershell
+# Send 6 rapid login attempts - 6th should return 429
+1..6 | ForEach-Object {
+    $r = Invoke-WebRequest -Uri "http://localhost:8000/api/v1/auth/login" `
+        -Method POST -ContentType "application/x-www-form-urlencoded" `
+        -Body "username=test&password=wrong" -SkipHttpErrorCheck
+    Write-Host "Attempt $_`: $($r.StatusCode)"
+}
+```
+
+Expected output:
+```
+Attempt 1: 401
+Attempt 2: 401
+Attempt 3: 401
+Attempt 4: 401
+Attempt 5: 401
+Attempt 6: 429
+```
+
+---
+
+## Sprint 3 Status
+
+| Item | Status |
+|------|--------|
+| **Tag** | `sprint3-stable` |
+| **State** | Stable |
+| **Tests** | 38 passed |
+
+### Scope (Locked)
+
+- Authentication (JWT + refresh tokens)
+- Patient CRUD with validations
+- RBAC (admin, doctor, secretaria)
+- Soft delete with `deleted_at`
+- Rate limiting on login
+- Full pytest suite
 
 ## Desarrollo
 
