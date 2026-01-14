@@ -1,8 +1,12 @@
 """
 Main FastAPI application entry point.
 """
+import io
 import logging
-from contextlib import asynccontextmanager
+import os
+import tempfile
+import time
+from contextlib import asynccontextmanager, redirect_stderr
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +18,23 @@ from app.core.limiter import limiter
 from app.api.v1.router import api_router
 
 logger = logging.getLogger(__name__)
+if settings.DEBUG:
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
+uvicorn_logger = logging.getLogger("uvicorn.error")
+
+
+def _log_info(message: str, *args) -> None:
+    logger.info(message, *args)
+    uvicorn_logger.info(message, *args)
+
+
+def _weasyprint_selftest_enabled() -> bool:
+    env_value = os.getenv("WEASYPRINT_SELFTEST")
+    if env_value is not None:
+        return env_value not in {"0", "false", "False", "no", "NO"}
+    return settings.WEASYPRINT_SELFTEST
 
 INSECURE_SECRET_KEYS = {
     "your-super-secret-key-change-this-in-production-min-32-chars",
@@ -36,22 +57,57 @@ if len(settings.SECRET_KEY) < 32:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Running WeasyPrint self-test...")
-    try:
-        from weasyprint import HTML
+    if not _weasyprint_selftest_enabled():
+        _log_info("WeasyPrint self-test: SKIPPED (WEASYPRINT_SELFTEST=0)")
+        yield
+        return
 
-        pdf_bytes = HTML(string="<html><body><h1>Self-Test</h1></body></html>").write_pdf()
-        if not pdf_bytes.startswith(b"%PDF"):
-            raise RuntimeError("WeasyPrint self-test failed: invalid PDF header.")
-        logger.info("WeasyPrint self-test PASSED (%s bytes)", len(pdf_bytes))
+    _log_info("Running WeasyPrint self-test...")
+    noise = ""
+    selftest_failed = False
+    pdf_bytes = b""
+    tmp = None
+    saved_fd = None
+    buf = io.StringIO()
+    try:
+        tmp = tempfile.TemporaryFile(mode="w+b")
+        saved_fd = os.dup(2)
+        os.dup2(tmp.fileno(), 2)
+        with redirect_stderr(buf):
+            from weasyprint import HTML
+            pdf_bytes = HTML(string="<html><body><h1>Self-Test</h1></body></html>").write_pdf()
     except Exception as exc:
+        logger.error("WeasyPrint self-test FAILED: %s", exc)
+        selftest_failed = True
         if settings.DEBUG:
-            logger.warning("WeasyPrint self-test FAILED: %s", exc)
+            logger.warning("Continuing in DEBUG mode despite WeasyPrint failure")
         else:
             raise RuntimeError(
-                "WeasyPrint self-test failed. On Windows, install MSYS2 to "
-                "C:\\msys64 and run: python scripts\\test_weasyprint_minimal.py"
+                f"WeasyPrint initialization failed: {exc}\n"
+                "Windows: Ensure MSYS2 mingw64 is installed at C:\\msys64\\mingw64\n"
+                "Run: python scripts/test_weasyprint_minimal.py for diagnostics"
             ) from exc
+    finally:
+        if saved_fd is not None:
+            time.sleep(5.0)
+            os.dup2(saved_fd, 2)
+            os.close(saved_fd)
+        native_noise = ""
+        if tmp is not None:
+            tmp.seek(0)
+            native_noise = tmp.read().decode("utf-8", errors="replace").strip()
+            tmp.close()
+        buf_noise = buf.getvalue().strip()
+        noise = "\n".join(filter(None, [buf_noise, native_noise])).strip()
+
+    if noise and settings.DEBUG:
+        logger.debug("WeasyPrint/GTK stderr captured during self-test:\n%s", noise)
+    if selftest_failed and settings.DEBUG:
+        yield
+        return
+    if not pdf_bytes.startswith(b"%PDF"):
+        raise RuntimeError("WeasyPrint generated invalid PDF (wrong header)")
+    _log_info("WeasyPrint self-test PASSED (%s bytes)", len(pdf_bytes))
     yield
 
 

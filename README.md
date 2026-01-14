@@ -115,6 +115,16 @@ pip install -r requirements.txt
 
 La aplicaci艠n ejecuta un self-test de WeasyPrint al iniciar: en `DEBUG=True` registra warning y contin俣a, en `DEBUG=False` falla r姘idamente si falta el runtime.
 
+### WeasyPrint Configuration
+
+Puedes desactivar el self-test al iniciar usando la variable de entorno:
+
+```bash
+WEASYPRINT_SELFTEST=False uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
+Los warnings nativos de GTK/GLib se suprimen durante el self-test; en `DEBUG=True` se registran con nivel DEBUG.
+
 ### 4. Configurar Variables de Entorno
 
 ```bash
