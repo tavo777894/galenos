@@ -81,3 +81,12 @@ tmpclaude-*-cwd/
 # --- OS noise ---
 Thumbs.db
 .DS_Store
+# --- Local runtime (DO NOT COMMIT) ---
+.env
+venv/
+.venv/
+*.db
+*.sqlite
+*.sqlite3
+alembic.ini
+storage/
