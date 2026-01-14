@@ -1,5 +1,4 @@
 # Python
-venv/
 __pycache__/
 *.pyc
 
@@ -8,10 +7,7 @@ out/
 *.pdf
 
 # Env
-.env
 
-# Temporary Claude / AI work dirs
-tmpclaude-*/
 
 # IDEs
 .vscode/
@@ -43,10 +39,6 @@ wheels/
 *.egg
 
 # Virtual Environment
-venv/
-env/
-ENV/
-.venv
 
 # IDE
 .vscode/
@@ -56,15 +48,10 @@ ENV/
 *~
 
 # Environment variables
-.env
 
 # Database
-*.db
-*.sqlite
-*.sqlite3
 
 # Alembic
-alembic.ini
 
 # Testing
 .pytest_cache/
@@ -78,6 +65,19 @@ Thumbs.db
 # Logs
 *.log
 
-# Temporary Claude / AI work dirs
-tmpclaude-*/
 
+
+Thumbs.db
+.DS_Store
+
+# --- AI / temp artifacts ---
+tmp/
+tmpclaude-*
+tmpclaude-*-cwd/
+*.bak
+*.bak2
+*.bak3
+
+# --- OS noise ---
+Thumbs.db
+.DS_Store
