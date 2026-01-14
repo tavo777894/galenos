@@ -137,3 +137,24 @@ def require_doctor_or_admin(current_user: User = Depends(get_current_active_user
             detail="Operation requires doctor or admin role"
         )
     return current_user
+
+
+def require_admin(current_user: User = Depends(get_current_active_user)) -> User:
+    """
+    Dependency to require admin role.
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        User object if user is an admin
+
+    Raises:
+        HTTPException: If user is not an admin
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operation requires admin role"
+        )
+    return current_user

@@ -19,7 +19,7 @@ from app.models.user import User
 from app.schemas.user import Token, UserCreate, User as UserSchema, RefreshTokenRequest
 
 router = APIRouter()
-LOGIN_LIMIT = "120/minute" if settings.DEBUG else "30/minute"
+LOGIN_LIMIT = "5/15minutes"
 
 
 @router.post("/login", response_model=Token)

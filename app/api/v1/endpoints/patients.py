@@ -1,12 +1,15 @@
 """
 Patient endpoints for CRUD operations with audit logging.
 """
+from datetime import datetime
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.db.session import get_db
-from app.core.deps import get_current_active_user
+from app.core.deps import get_current_active_user, require_admin
+from app.core.db_errors import raise_conflict_for_integrity_error
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.encounter import Encounter
@@ -29,15 +32,40 @@ def create_patient(
     existing_patient = db.query(Patient).filter(Patient.ci == patient_in.ci).first()
     if existing_patient:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_409_CONFLICT,
             detail=f"Patient with CI {patient_in.ci} already exists"
         )
+
+    if patient_in.email and Patient.__table__.columns["email"].unique:
+        existing_email = db.query(Patient).filter(Patient.email == patient_in.email).first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Patient with email {patient_in.email} already exists"
+            )
 
     # Create new patient
     db_patient = Patient(**patient_in.model_dump())
     db.add(db_patient)
-    db.commit()
-    db.refresh(db_patient)
+    conflict_detail_map = {
+        "patients.ci": f"Patient with CI {patient_in.ci} already exists",
+        "(ci)": f"Patient with CI {patient_in.ci} already exists",
+    }
+    if patient_in.email:
+        conflict_detail_map.update({
+            "patients.email": f"Patient with email {patient_in.email} already exists",
+            "(email)": f"Patient with email {patient_in.email} already exists",
+        })
+
+    try:
+        db.commit()
+        db.refresh(db_patient)
+    except IntegrityError as exc:
+        db.rollback()
+        raise_conflict_for_integrity_error(
+            exc,
+            detail_map=conflict_detail_map,
+        )
 
     # Audit log
     audit_service.log_patient_create(db, current_user, db_patient.id, db_patient.ci)
@@ -53,7 +81,7 @@ def list_patients(
     current_user: User = Depends(get_current_active_user)
 ):
     """Get list of all patients with pagination."""
-    patients = db.query(Patient).offset(skip).limit(limit).all()
+    patients = db.query(Patient).filter(Patient.deleted_at.is_(None)).offset(skip).limit(limit).all()
     return patients
 
 
@@ -65,7 +93,7 @@ def get_patient(
 ):
     """Get a specific patient by ID."""
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
+    if not patient or patient.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Patient with ID {patient_id} not found"
@@ -131,7 +159,7 @@ def update_patient(
 ):
     """Update a patient's information with audit logging."""
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
+    if not patient or patient.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Patient with ID {patient_id} not found"
@@ -142,8 +170,16 @@ def update_patient(
         existing_patient = db.query(Patient).filter(Patient.ci == patient_in.ci).first()
         if existing_patient:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail=f"Patient with CI {patient_in.ci} already exists"
+            )
+
+    if patient_in.email and patient_in.email != patient.email and Patient.__table__.columns["email"].unique:
+        existing_email = db.query(Patient).filter(Patient.email == patient_in.email).first()
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Patient with email {patient_in.email} already exists"
             )
 
     # Track changed fields for audit
@@ -154,8 +190,27 @@ def update_patient(
     for field, value in update_data.items():
         setattr(patient, field, value)
 
-    db.commit()
-    db.refresh(patient)
+    conflict_ci = patient_in.ci or patient.ci
+    conflict_detail_map = {
+        "patients.ci": f"Patient with CI {conflict_ci} already exists",
+        "(ci)": f"Patient with CI {conflict_ci} already exists",
+    }
+    conflict_email = patient_in.email or patient.email
+    if conflict_email:
+        conflict_detail_map.update({
+            "patients.email": f"Patient with email {conflict_email} already exists",
+            "(email)": f"Patient with email {conflict_email} already exists",
+        })
+
+    try:
+        db.commit()
+        db.refresh(patient)
+    except IntegrityError as exc:
+        db.rollback()
+        raise_conflict_for_integrity_error(
+            exc,
+            detail_map=conflict_detail_map,
+        )
 
     # Audit log
     if changed_fields:
@@ -168,11 +223,11 @@ def update_patient(
 def delete_patient(
     patient_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(require_admin)
 ):
     """Delete a patient with audit logging."""
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
+    if not patient or patient.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Patient with ID {patient_id} not found"
@@ -180,7 +235,7 @@ def delete_patient(
 
     patient_ci = patient.ci
 
-    db.delete(patient)
+    patient.deleted_at = datetime.utcnow()
     db.commit()
 
     # Audit log

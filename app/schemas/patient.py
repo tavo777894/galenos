@@ -3,7 +3,7 @@ Patient Pydantic schemas for request/response validation.
 """
 from datetime import datetime, date
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 
 
 class PatientBase(BaseModel):
@@ -20,6 +20,22 @@ class PatientBase(BaseModel):
     emergency_contact_relationship: Optional[str] = Field(None, max_length=100)
     allergies: Optional[str] = None
     medical_history: Optional[str] = None
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_date_of_birth(cls, value: date) -> date:
+        if value > date.today():
+            raise ValueError("date_of_birth cannot be in the future")
+        return value
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_phone(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if isinstance(value, str):
+            return value.replace(" ", "")
+        return value
 
 
 class PatientCreate(PatientBase):
@@ -41,6 +57,24 @@ class PatientUpdate(BaseModel):
     emergency_contact_relationship: Optional[str] = Field(None, max_length=100)
     allergies: Optional[str] = None
     medical_history: Optional[str] = None
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_date_of_birth(cls, value: Optional[date]) -> Optional[date]:
+        if value is None:
+            return value
+        if value > date.today():
+            raise ValueError("date_of_birth cannot be in the future")
+        return value
+
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_phone(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        if isinstance(value, str):
+            return value.replace(" ", "")
+        return value
 
 
 class PatientInDB(PatientBase):

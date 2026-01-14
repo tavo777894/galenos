@@ -1,6 +1,13 @@
+param(
+    [string]$BaseUrl = "http://localhost:8000"
+)
+
 $ErrorActionPreference = "Stop"
 
-$BaseUrl = "http://localhost:8000"
+if (-not $BaseUrl.StartsWith("http")) {
+    throw "BaseUrl must start with http or https: $BaseUrl"
+}
+
 $ApiBase = "$BaseUrl/api/v1"
 $Cleanup = $true
 

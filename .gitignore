@@ -90,3 +90,6 @@ venv/
 *.sqlite3
 alembic.ini
 storage/
+
+uploads/
+
