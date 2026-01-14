@@ -2,11 +2,12 @@
 Authentication endpoints for login, registration, and token refresh.
 """
 from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.security import (
     verify_password,
     get_password_hash,
@@ -21,7 +22,9 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=Token)
+@limiter.limit("5/minute")
 def login(
+    request: Request,
     db: Session = Depends(get_db),
     form_data: OAuth2PasswordRequestForm = Depends()
 ):

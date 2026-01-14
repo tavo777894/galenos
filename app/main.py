@@ -3,8 +3,32 @@ Main FastAPI application entry point.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.api.v1.router import api_router
+
+INSECURE_SECRET_KEYS = {
+    "your-super-secret-key-change-this-in-production-min-32-chars",
+    "CHANGE-THIS-OR-APP-WILL-NOT-START-minimum-32-characters-required",
+    "change-me",
+    "secret",
+    "password",
+    "12345",
+}
+
+if settings.SECRET_KEY in INSECURE_SECRET_KEYS:
+    raise RuntimeError(
+        "Insecure SECRET_KEY detected. Generate one with: "
+        "python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
+
+if len(settings.SECRET_KEY) < 32:
+    raise RuntimeError("SECRET_KEY must be at least 32 characters.")
+
+
 
 # Create FastAPI application
 app = FastAPI(
@@ -14,6 +38,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configure CORS
 app.add_middleware(
