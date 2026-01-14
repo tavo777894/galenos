@@ -100,6 +100,21 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Windows: WeasyPrint (MSYS2) Setup
+
+1. Instala MSYS2 en `C:\msys64`
+2. Abre la terminal **MSYS2 MINGW64**
+3. Ejecuta:
+   ```bash
+   pacman -S mingw-w64-x86_64-gtk3 mingw-w64-x86_64-cairo mingw-w64-x86_64-pango
+   ```
+4. Verifica con:
+   ```bash
+   python scripts/test_weasyprint_minimal.py
+   ```
+
+La aplicaci艠n ejecuta un self-test de WeasyPrint al iniciar: en `DEBUG=True` registra warning y contin俣a, en `DEBUG=False` falla r姘idamente si falta el runtime.
+
 ### 4. Configurar Variables de Entorno
 
 ```bash

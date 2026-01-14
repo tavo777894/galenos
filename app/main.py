@@ -1,6 +1,9 @@
 """
 Main FastAPI application entry point.
 """
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
@@ -9,6 +12,8 @@ from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.api.v1.router import api_router
+
+logger = logging.getLogger(__name__)
 
 INSECURE_SECRET_KEYS = {
     "your-super-secret-key-change-this-in-production-min-32-chars",
@@ -29,6 +34,27 @@ if len(settings.SECRET_KEY) < 32:
     raise RuntimeError("SECRET_KEY must be at least 32 characters.")
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Running WeasyPrint self-test...")
+    try:
+        from weasyprint import HTML
+
+        pdf_bytes = HTML(string="<html><body><h1>Self-Test</h1></body></html>").write_pdf()
+        if not pdf_bytes.startswith(b"%PDF"):
+            raise RuntimeError("WeasyPrint self-test failed: invalid PDF header.")
+        logger.info("WeasyPrint self-test PASSED (%s bytes)", len(pdf_bytes))
+    except Exception as exc:
+        if settings.DEBUG:
+            logger.warning("WeasyPrint self-test FAILED: %s", exc)
+        else:
+            raise RuntimeError(
+                "WeasyPrint self-test failed. On Windows, install MSYS2 to "
+                "C:\\msys64 and run: python scripts\\test_weasyprint_minimal.py"
+            ) from exc
+    yield
+
+
 
 # Create FastAPI application
 app = FastAPI(
@@ -37,6 +63,7 @@ app = FastAPI(
     description="Sistema de Historia Clínica Electrónica - MVP",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
