@@ -6,9 +6,10 @@ import logging
 import os
 import tempfile
 import time
+from uuid import uuid4
 from contextlib import asynccontextmanager, redirect_stderr
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -25,6 +26,7 @@ if settings.DEBUG:
 else:
     logger.setLevel(logging.INFO)
 uvicorn_logger = logging.getLogger("uvicorn.error")
+request_logger = logging.getLogger("app.request")
 
 
 def _log_info(message: str, *args) -> None:
@@ -126,6 +128,29 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Request logging with request_id
+@app.middleware("http")
+async def request_logging_middleware(request: Request, call_next):
+    start_time = time.perf_counter()
+    request_id = uuid4().hex[:12]
+    response: Response
+    try:
+        response = await call_next(request)
+    finally:
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        status_code = getattr(response, "status_code", 500)
+        request_logger.info(
+            "request_id=%s method=%s path=%s status_code=%s duration_ms=%.2f",
+            request_id,
+            request.method,
+            request.url.path,
+            status_code,
+            duration_ms,
+        )
+
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 # Configure CORS
 app.add_middleware(
