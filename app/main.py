@@ -12,10 +12,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.api.v1.router import api_router
+from app.db.session import SessionLocal
 
 logger = logging.getLogger(__name__)
 if settings.DEBUG:
@@ -162,6 +164,15 @@ def health_check():
     Returns:
         Health status
     """
+    db = None
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+    except Exception:
+        return {"status": "degraded", "db": "down"}
+    finally:
+        if db is not None:
+            db.close()
     return {"status": "healthy"}
 
 
