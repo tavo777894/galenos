@@ -1,7 +1,7 @@
 """
 Patient endpoints for CRUD operations with audit logging.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
@@ -235,7 +235,7 @@ def delete_patient(
 
     patient_ci = patient.ci
 
-    patient.deleted_at = datetime.utcnow()
+    patient.deleted_at = datetime.now(timezone.utc)
     db.commit()
 
     # Audit log

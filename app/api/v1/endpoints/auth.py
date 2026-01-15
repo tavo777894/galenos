@@ -1,7 +1,7 @@
 """
 Authentication endpoints for login, registration, and token refresh.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -169,7 +169,7 @@ def refresh_token(
     db.add(RevokedToken(
         jti=jti,
         token_type="refresh",
-        revoked_at=datetime.utcnow(),
+        revoked_at=datetime.now(timezone.utc),
         expires_at=expires_at,
         user_id=user.id
     ))
