@@ -2,6 +2,7 @@
 Security utilities for password hashing and JWT token handling.
 """
 from datetime import datetime, timedelta
+from uuid import uuid4
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -81,7 +82,11 @@ def create_refresh_token(data: dict, expires_delta: Optional[timedelta] = None) 
         # Refresh tokens last 7 days by default
         expire = datetime.utcnow() + timedelta(days=7)
 
-    to_encode.update({"exp": expire, "token_type": "refresh"})
+    to_encode.update({
+        "exp": expire,
+        "token_type": "refresh",
+        "jti": str(uuid4())
+    })
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
     return encoded_jwt

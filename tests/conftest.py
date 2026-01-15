@@ -24,6 +24,7 @@ from app.models.template import Template
 from app.models.snippet import Snippet
 from app.models.attachment import Attachment
 from app.models.audit_log import AuditLog
+from app.models.revoked_token import RevokedToken
 
 # Test database setup - in-memory SQLite with StaticPool for thread safety
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -62,9 +63,9 @@ def disable_rate_limiter(request):
     This prevents 429 errors during normal test runs while still allowing
     rate limit tests to function correctly.
     """
-    # Check if this test is in the rate limit test module
+    # Check if this test is in a rate limit test module
     test_module = request.node.fspath.basename
-    if test_module == "test_auth_rate_limit.py":
+    if test_module in {"test_auth_rate_limit.py", "test_auth_register_security.py"}:
         # Keep limiter enabled for rate limit tests, but reset storage
         limiter.reset()
         yield

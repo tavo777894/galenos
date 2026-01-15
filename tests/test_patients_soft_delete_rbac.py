@@ -93,6 +93,23 @@ class TestPatientSoftDelete:
 
         assert get_response.status_code == 404
 
+    def test_search_deleted_patient_returns_404(self, test_patient, admin_token):
+        """
+        Test: Search by CI excludes soft-deleted patients.
+        Verifies: Soft-deleted patient returns 404 on search.
+        """
+        delete_response = client.delete(
+            f"/api/v1/patients/{test_patient.id}",
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        assert delete_response.status_code == 204
+
+        search_response = client.get(
+            f"/api/v1/patients/search/ci/{test_patient.ci}",
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
+        assert search_response.status_code == 404
+
     def test_list_patients_excludes_deleted(self, test_db, admin_token):
         """
         Test: List patients does NOT include soft-deleted patients.

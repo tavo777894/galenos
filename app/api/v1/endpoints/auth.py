@@ -1,13 +1,14 @@
 """
 Authentication endpoints for login, registration, and token refresh.
 """
-from datetime import timedelta
+from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.deps import require_admin
 from app.core.security import (
     verify_password,
     get_password_hash,
@@ -16,10 +17,12 @@ from app.core.security import (
     decode_token
 )
 from app.models.user import User
+from app.models.revoked_token import RevokedToken
 from app.schemas.user import Token, UserCreate, User as UserSchema, RefreshTokenRequest
 
 router = APIRouter()
 LOGIN_LIMIT = "5/15minutes"
+REGISTER_LIMIT = "5/hour"
 
 
 @router.post("/login", response_model=Token)
@@ -114,6 +117,14 @@ def refresh_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    jti = payload.get("jti")
+    if not jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     username: str = payload.get("sub")
     if username is None:
         raise HTTPException(
@@ -137,6 +148,33 @@ def refresh_token(
             detail="Inactive user"
         )
 
+    # Check if refresh token is already revoked
+    revoked = db.query(RevokedToken).filter(RevokedToken.jti == jti).first()
+    if revoked:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    expires_at = None
+    exp_value = payload.get("exp")
+    if exp_value:
+        try:
+            expires_at = datetime.utcfromtimestamp(exp_value)
+        except (TypeError, ValueError, OSError):
+            expires_at = None
+
+    # Revoke the current refresh token (one-time use)
+    db.add(RevokedToken(
+        jti=jti,
+        token_type="refresh",
+        revoked_at=datetime.utcnow(),
+        expires_at=expires_at,
+        user_id=user.id
+    ))
+    db.commit()
+
     # Create new access token
     token_data = {"sub": user.username, "role": user.role.value}
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -144,18 +182,22 @@ def refresh_token(
         data=token_data,
         expires_delta=access_token_expires
     )
+    refresh_token = create_refresh_token(data=token_data)
 
     return {
         "access_token": access_token,
-        "refresh_token": refresh_request.refresh_token,  # Return same refresh token
+        "refresh_token": refresh_token,
         "token_type": "bearer"
     }
 
 
 @router.post("/register", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
+@limiter.limit(REGISTER_LIMIT)
 def register(
     user_in: UserCreate,
-    db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Register a new user.

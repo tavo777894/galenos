@@ -251,7 +251,10 @@ def search_patient_by_ci(
     current_user: User = Depends(get_current_active_user)
 ):
     """Search for a patient by CI."""
-    patient = db.query(Patient).filter(Patient.ci == ci).first()
+    patient = db.query(Patient).filter(
+        Patient.ci == ci,
+        Patient.deleted_at.is_(None)
+    ).first()
     if not patient:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

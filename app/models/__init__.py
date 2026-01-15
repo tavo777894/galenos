@@ -9,6 +9,7 @@ from app.models.encounter import Encounter, EncounterStatus, MedicalSpecialty
 from app.models.template import Template, user_favorite_templates
 from app.models.snippet import Snippet, SnippetCategory, user_favorite_snippets
 from app.models.attachment import Attachment, AttachmentType
+from app.models.revoked_token import RevokedToken
 
 __all__ = [
     "User", "UserRole",
@@ -18,5 +19,6 @@ __all__ = [
     "Encounter", "EncounterStatus", "MedicalSpecialty",
     "Template", "user_favorite_templates",
     "Snippet", "SnippetCategory", "user_favorite_snippets",
-    "Attachment", "AttachmentType"
+    "Attachment", "AttachmentType",
+    "RevokedToken"
 ]
