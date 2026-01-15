@@ -136,7 +136,7 @@ def get_patient_encounters(
     """
     # Verify patient exists
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
+    if not patient or patient.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Patient with ID {patient_id} not found"
@@ -275,7 +275,7 @@ def generate_patient_card_pdf(
     Returns the document ID and download URL.
     """
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
+    if not patient or patient.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Patient with ID {patient_id} not found"
@@ -317,7 +317,7 @@ def get_patient_card_pdf_quick(
     Quick preview mode.
     """
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
+    if not patient or patient.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Patient with ID {patient_id} not found"

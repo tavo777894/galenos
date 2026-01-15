@@ -87,6 +87,29 @@ class TestPatientCreate:
         assert response.status_code == 409
         assert "12345678" in response.json()["detail"]
 
+    def test_create_patient_duplicate_email_returns_409(self, test_patient, auth_token):
+        """
+        Test: Create patient with duplicate email returns 409 Conflict.
+        Verifies: Unique constraint on email is enforced.
+        """
+        patient_data = {
+            "first_name": "Email",
+            "last_name": "Duplicate",
+            "ci": "33333333",
+            "date_of_birth": "1992-02-02",
+            "phone": "+59173333333",
+            "email": "john@test.com"
+        }
+
+        response = client.post(
+            "/api/v1/patients/",
+            json=patient_data,
+            headers={"Authorization": f"Bearer {auth_token}"}
+        )
+
+        assert response.status_code == 409
+        assert "john@test.com" in response.json()["detail"]
+
     def test_create_patient_missing_required_fields_returns_422(self, auth_token):
         """
         Test: Create patient with missing required fields returns 422.

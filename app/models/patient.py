@@ -20,7 +20,7 @@ class Patient(Base):
 
     # Contact Information
     phone = Column(String(20), nullable=True)
-    email = Column(String(255), nullable=True)
+    email = Column(String(255), unique=True, nullable=True)
     address = Column(String(500), nullable=True)
 
     # Emergency Contact
@@ -35,7 +35,7 @@ class Patient(Base):
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    deleted_at = Column(DateTime, nullable=True)
+    deleted_at = Column(DateTime, nullable=True, index=True)
 
     @property
     def full_name(self) -> str:
