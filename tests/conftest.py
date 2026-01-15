@@ -65,7 +65,7 @@ def disable_rate_limiter(request):
     """
     # Check if this test is in a rate limit test module
     test_module = request.node.fspath.basename
-    if test_module == "test_auth_rate_limit.py":
+    if test_module in {"test_auth_rate_limit.py", "test_auth_register_security.py"}:
         # Keep limiter enabled for rate limit tests, but reset storage
         limiter.reset()
         yield

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.core.config import settings
 from app.core.limiter import limiter
+from app.core.deps import require_admin
 from app.core.security import (
     verify_password,
     get_password_hash,
@@ -21,6 +22,7 @@ from app.schemas.user import Token, UserCreate, User as UserSchema, RefreshToken
 
 router = APIRouter()
 LOGIN_LIMIT = "5/15minutes"
+REGISTER_LIMIT = "5/hour"
 
 
 @router.post("/login", response_model=Token)
@@ -190,9 +192,12 @@ def refresh_token(
 
 
 @router.post("/register", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
+@limiter.limit(REGISTER_LIMIT)
 def register(
     user_in: UserCreate,
-    db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
 ):
     """
     Register a new user.
